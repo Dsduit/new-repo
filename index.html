@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pijlen tellen</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#b3261e">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#f6f5f1;--fg:#1d1d1b;--card:#fff;--mut:#6b6a66;--acc:#b3261e;--bd:#ddd9d0;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171716;--fg:#eeede8;--card:#232321;--mut:#a09f98;--acc:#ff6b60;--bd:#3a3a37;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#171716;--fg:#eeede8;--card:#232321;--mut:#a09f98;--acc:#ff6b60;--bd:#3a3a37;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;touch-action:manipulation}
+main{max-width:520px;margin:0 auto;padding:14px}
+h1{font-size:22px;margin:4px 0 12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:12px}
+label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
+input,select{width:100%;padding:10px;font-size:16px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg)}
+.row{display:flex;gap:10px}.row>*{flex:1}
+button{font:inherit;cursor:pointer}
+.btn{padding:12px 14px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--fg);font-weight:600}
+.btn.p{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.full{width:100%;margin-top:10px}
+.sess{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;margin-bottom:8px}
+.mut{color:var(--mut);font-size:13px}
+.stats{display:flex;gap:8px;margin-bottom:12px}
+.stats div{flex:1;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px;text-align:center}
+.stats b{display:block;font-size:22px}
+.slots{display:flex;gap:8px;margin:8px 0 12px}
+.slot{flex:1;height:46px;border:2px dashed var(--bd);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700}
+.slot.f{border-style:solid}
+.pad{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.k{padding:16px 0;font-size:22px;font-weight:700;border-radius:12px;border:1px solid #0003}
+.g{background:#f5c518;color:#111}.r{background:#d9342b;color:#fff}.b{background:#2a7fd4;color:#fff}.z{background:#222;color:#fff}.w{background:#fff;color:#111}.m{background:#8a8a85;color:#fff}
+table{width:100%;border-collapse:collapse}
+td,th{padding:6px 4px;border-bottom:1px solid var(--bd);text-align:left}
+th{font-size:12px;color:var(--mut);font-weight:600}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.top h1{margin:0;flex:1}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+var KEY='pijlen:sessies';
+var ORDER=['X','10','9','8','7','6','5','4','3','2','1','M'];
+var CLS={X:'g','10':'g','9':'g','8':'r','7':'r','6':'b','5':'b','4':'z','3':'z','2':'w','1':'w',M:'m'};
+var S=load(), view='home', cid=null, armed=false, notice='';
+var app=document.getElementById('app');
+
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return []}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function val(a){return a==='X'?10:a==='M'?0:+a}
+function tot(a){return a.reduce(function(n,x){return n+val(x)},0)}
+function srt(e){return e.slice().sort(function(a,b){return ORDER.indexOf(a)-ORDER.indexOf(b)})}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function stats(s){var a=s.arrows;return{t:tot(a),x:a.filter(function(v){return v==='X'}).length,k:a.filter(function(v){return v==='X'||v==='10'}).length}}
+function endsOf(s){var r=[];for(var i=0;i<s.arrows.length;i+=s.apE)r.push(s.arrows.slice(i,i+s.apE));return r}
+function isDone(s){return s.arrows.length>=s.apE*s.nE}
+function get(id){return S.filter(function(s){return s.id===id})[0]}
+
+function summary(s){
+  var st=stats(s),run=0;
+  var t='Boogschieten '+s.date+(s.name?' – '+s.name:'')+'\nTotaal: '+st.t+' ('+s.arrows.length+' pijlen, X: '+st.x+', 10+: '+st.k+')\n';
+  endsOf(s).forEach(function(e,i){var et=tot(e);run+=et;t+='End '+(i+1)+': '+srt(e).join(' ')+' = '+et+' ('+run+')\n'});
+  return t.trim();
+}
+function csv(){
+  var h='datum;naam;pijlen_per_end;ends;totaal;X;tienen;pijlen';
+  return h+'\n'+S.map(function(s){var st=stats(s);return [s.date,'"'+(s.name||'').replace(/"/g,'""')+'"',s.apE,s.nE,st.t,st.x,st.k,s.arrows.join(' ')].join(';')}).join('\n');
+}
+function share(title,text){
+  if(navigator.share){navigator.share({title:title,text:text}).catch(function(){})}
+  else if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){notice='Gekopieerd naar klembord';render()},function(){manual(text)})}
+  else manual(text);
+}
+function manual(text){notice='Delen niet beschikbaar: kopieer de tekst hieronder.';view='copy';window._copy=text;render()}
+
+function render(){
+  var h='';
+  if(view==='home')h=home();
+  else if(view==='session')h=session(get(cid));
+  else if(view==='copy')h='<div class="top"><button class="btn" data-act="back">←</button><h1>Kopieer tekst</h1></div><div class="card"><textarea readonly style="width:100%;height:260px;font:14px monospace;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:8px">'+esc(window._copy||'')+'</textarea></div>';
+  app.innerHTML=h;
+}
+function home(){
+  var h='<h1>Pijlen tellen</h1><div class="card"><b>Nieuwe sessie</b>'+
+  '<label>Naam of ronde (optioneel)</label><input id="name" placeholder="bijv. 18 m indoor">'+
+  '<div class="row"><div><label>Pijlen per end</label><input id="ape" type="number" min="1" max="12" value="3"></div>'+
+  '<div><label>Aantal ends</label><input id="ne" type="number" min="1" max="60" value="10"></div></div>'+
+  '<button class="btn p full" data-act="start">Start</button></div>';
+  if(S.length){
+    h+='<div class="mut" style="margin:8px 2px">Eerdere sessies</div>';
+    S.slice().reverse().forEach(function(s){
+      var st=stats(s);
+      h+='<button class="btn sess" data-act="open" data-id="'+s.id+'"><span>'+esc(s.date)+(s.name?' · '+esc(s.name):'')+'<br><span class="mut">'+s.arrows.length+'/'+s.apE*s.nE+' pijlen'+(isDone(s)?'':' · bezig')+'</span></span><b style="font-size:22px">'+st.t+'</b></button>';
+    });
+    h+='<button class="btn full" data-act="exportall">Alles delen als CSV</button>';
+  }
+  if(notice){h+='<p class="mut">'+esc(notice)+'</p>';notice=''}
+  return h;
+}
+function session(s){
+  if(!s)return '';
+  var st=stats(s),done=isDone(s),ends=endsOf(s);
+  var h='<div class="top"><button class="btn" data-act="back">←</button><h1>'+esc(s.name||s.date)+'</h1></div>';
+  h+='<div class="stats"><div><b>'+st.t+'</b><span class="mut">totaal</span></div><div><b>'+st.x+'</b><span class="mut">X</span></div><div><b>'+st.k+'</b><span class="mut">10+</span></div><div><b>'+Math.min(ends.length,s.nE)+'/'+s.nE+'</b><span class="mut">end</span></div></div>';
+  if(!done){
+    var cur=s.arrows.length%s.apE===0?[]:ends[ends.length-1];
+    h+='<div class="slots">';
+    for(var i=0;i<s.apE;i++)h+='<div class="slot'+(cur[i]?' f':'')+'">'+(cur[i]||'')+'</div>';
+    h+='</div><div class="pad">';
+    ORDER.forEach(function(k){h+='<button class="k '+CLS[k]+'" data-act="arrow" data-a="'+k+'">'+k+'</button>'});
+    h+='</div><button class="btn full" data-act="undo"'+(s.arrows.length?'':' disabled')+'>Laatste pijl ongedaan maken</button>';
+  }else h+='<div class="card"><b>Sessie klaar</b></div>';
+  if(ends.length){
+    h+='<div class="card" style="margin-top:12px"><table><tr><th>End</th><th>Pijlen</th><th class="n">Som</th><th class="n">Totaal</th></tr>';
+    var run=0;
+    ends.forEach(function(e,i){var et=tot(e);run+=et;h+='<tr><td>'+(i+1)+'</td><td>'+srt(e).join(' ')+'</td><td class="n">'+et+'</td><td class="n">'+run+'</td></tr>'});
+    h+='</table></div>';
+  }
+  h+='<button class="btn p full" data-act="share">Delen</button>';
+  h+='<button class="btn full" data-act="del">'+(armed?'Zeker weten? Tik nogmaals':'Sessie verwijderen')+'</button>';
+  if(notice){h+='<p class="mut">'+esc(notice)+'</p>';notice=''}
+  return h;
+}
+
+app.addEventListener('click',function(ev){
+  var b=ev.target.closest('[data-act]');if(!b)return;
+  var act=b.dataset.act,s=cid?get(cid):null;
+  if(act!=='del')armed=false;
+  if(act==='start'){
+    var ape=Math.max(1,Math.min(12,parseInt(document.getElementById('ape').value)||3));
+    var ne=Math.max(1,Math.min(60,parseInt(document.getElementById('ne').value)||10));
+    var n={id:'s'+Date.now(),date:new Date().toLocaleDateString('nl-NL'),name:document.getElementById('name').value.trim(),apE:ape,nE:ne,arrows:[]};
+    S.push(n);save();cid=n.id;view='session';
+  }else if(act==='open'){cid=b.dataset.id;view='session'}
+  else if(act==='back'){view=view==='copy'&&cid?'session':'home';if(view==='home')cid=null}
+  else if(act==='arrow'&&s&&!isDone(s)){s.arrows.push(b.dataset.a);save()}
+  else if(act==='undo'&&s){s.arrows.pop();save()}
+  else if(act==='share'&&s){share('Boogschieten',summary(s));return}
+  else if(act==='exportall'){share('Boogschieten scores',csv());return}
+  else if(act==='del'&&s){
+    if(!armed){armed=true}
+    else{S=S.filter(function(x){return x.id!==cid});save();armed=false;cid=null;view='home'}
+  }
+  render();
+});
+render();
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
+</script>
+</body>
+</html>
